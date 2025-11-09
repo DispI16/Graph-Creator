@@ -13,6 +13,7 @@
 #include <vector>
 
 #define PI 3.1415926
+#define save_path "C:/graphs/"
 
 using std::cout, std::cin, std::endl, std::min;
 using std::fstream, std::stringstream;
@@ -505,7 +506,7 @@ void drawGrid(sf::RenderTarget& target) {
 
 void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Vertex>& vertices, vector<Edge>& edges) {
     string path_cpp(path);
-    path_cpp = "C:/graphs/" + path_cpp;
+    path_cpp = save_path + path_cpp;
     path_cpp += ".png";
 
     cout << "Saving to " << path_cpp << endl;
@@ -538,7 +539,7 @@ void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Ver
 }
 void saveGraphAsFile(char path[128], vector<Vertex>& vertices, vector<Edge>& edges, const vector<col>& colors) {
     string path_cpp(path);
-    path_cpp = "C:/graphs/" + path_cpp;
+    path_cpp = save_path + path_cpp;
     path_cpp += ".txt";
 
     cout << "Saving to " << path_cpp << endl;
@@ -571,7 +572,7 @@ void saveGraphAsFile(char path[128], vector<Vertex>& vertices, vector<Edge>& edg
 }
 void loadGraphFromFile(char path[128], vector<Vertex>& vertices, vector<Edge>& edges, const vector<col>& colors) {
     string path_cpp(path);
-    path_cpp = "C:/graphs/" + path_cpp;
+    path_cpp = save_path + path_cpp;
     path_cpp += ".txt";
 
     cout << "Opening graph from " << path_cpp << endl;
