@@ -143,12 +143,12 @@ struct Edge {
     }
 };
 
-void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Vertex>& vertices, vector<Edge>& edges);
-void saveGraphAsFile(char path[128], vector<Vertex>& vertices, vector<Edge>& edges, const vector<col>& colors);
-void loadGraphFromFile(char path[128], vector<Vertex>& vertices, vector<Edge>& edges, const vector<col>& colors);
+void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices, vector<Edge*>& edges);
+void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, const vector<col>& colors);
+void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, const vector<col>& colors);
 
-void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex>& vertices);
-void oppositeEdges(vector<Vertex>& vertices, vector<Edge>& edges);
+void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices);
+void oppositeEdges(vector<Vertex*>& vertices, vector<Edge*>& edges);
 
 int main() {
     const vector<string> names = {"Black", "Blue", "Yellow", "Red", "Green"};
@@ -192,8 +192,8 @@ int main() {
 
     // Storage
     // vector<Mark> marks{};
-    vector<Vertex> vertices{};
-    vector<Edge> edges{};
+    vector<Vertex*> vertices{};
+    vector<Edge*> edges{};
 
     // ImGui
     sf::Clock clock;
@@ -229,12 +229,12 @@ int main() {
                             x -= x % 50;
                             y -= y % 50;
                         }
-                        vertices.emplace_back(Vertex{vec2(x, y), colors[vCol]});
+                        vertices.emplace_back(new Vertex{vec2(x, y), colors[vCol]});
                     } else if (mode == CreateEdges) {
                         Vertex* clicked = nullptr;
-                        for (auto& v : vertices) {
-                            if (inside(v.pos, vec2(e.mouseButton.x, e.mouseButton.y), 20)) {
-                                clicked = &v;
+                        for (Vertex* v : vertices) {
+                            if (inside(v->pos, vec2(e.mouseButton.x, e.mouseButton.y), 20)) {
+                                clicked = v;
                                 break;
                             }
                         }
@@ -250,14 +250,14 @@ int main() {
                         }
                         Mark* to_add = new Mark(selectedV1 == selectedV2 ? (selectedV1->pos + vec2(50, 50))
                                                                          : (selectedV1->pos + selectedV2->pos) / 2.f);
-                        edges.emplace_back(Edge{selectedV1, selectedV2, to_add, colors[eCol],
+                        edges.emplace_back(new Edge{selectedV1, selectedV2, to_add, colors[eCol],
                                                 (selectedV1 == selectedV2 ? false : orientEdges)});
                         selectedV1 = nullptr;
                         selectedV2 = nullptr;
                     } else if (mode == DeleteEdges) {
                         int to_delete = -1;
                         for (int i = 0; i < edges.size(); i++) {
-                            if (inside(edges[i].p3->pos, vec2(e.mouseButton.x, e.mouseButton.y), 12)) {
+                            if (inside(edges[i]->p3->pos, vec2(e.mouseButton.x, e.mouseButton.y), 12)) {
                                 to_delete = i;
                                 break;
                             }
@@ -265,14 +265,15 @@ int main() {
                         if (to_delete == -1) {
                             continue;
                         }
-                        delete edges[to_delete].p3;
+                        delete edges[to_delete]->p3;
+                        delete edges[to_delete];
                         edges.erase(edges.begin() + to_delete);
                     } else if (mode == DeleteVertices) {
                         int to_delete = -1;
                         for (int i = 0; i < vertices.size(); i++) {
-                            if (inside(vertices[i].pos, vec2(e.mouseButton.x, e.mouseButton.y), 20)) {
+                            if (inside(vertices[i]->pos, vec2(e.mouseButton.x, e.mouseButton.y), 20)) {
                                 to_delete = i;
-                                selectedV1 = &vertices[i];
+                                selectedV1 = vertices[i];
                                 break;
                             }
                         }
@@ -281,12 +282,14 @@ int main() {
                             break;
                         }
                         for (int i = 0; i < edges.size(); i++) {
-                            if (edges[i].v1 == selectedV1 || edges[i].v2 == selectedV1) {
-                                delete edges[i].p3;
+                            if (edges[i]->v1 == selectedV1 || edges[i]->v2 == selectedV1) {
+                                delete edges[i]->p3;
+                                delete edges[i];
                                 edges.erase(edges.begin() + i);
                                 i--;
                             }
                         }
+                        delete vertices[to_delete];
                         vertices.erase(vertices.begin() + to_delete);
                     } else if (mode == ModEdges) {
                         if (selectedE) {
@@ -298,9 +301,9 @@ int main() {
                             selectedE->p3->pos = vec2(x, y);
                             continue;
                         }
-                        for (auto& edge : edges) {
-                            if (inside(edge.p3->pos, vec2(e.mouseButton.x, e.mouseButton.y), 12)) {
-                                selectedE = &edge;
+                        for (Edge* edge : edges) {
+                            if (inside(edge->p3->pos, vec2(e.mouseButton.x, e.mouseButton.y), 12)) {
+                                selectedE = edge;
                                 selectedECol = find(colors.begin(), colors.end(), selectedE->color) - colors.begin();
                                 break;
                             }
@@ -315,9 +318,9 @@ int main() {
                             selectedV1->pos = vec2(x, y);
                             continue;
                         }
-                        for (auto& v : vertices) {
-                            if (inside(v.pos, vec2(e.mouseButton.x, e.mouseButton.y), 20)) {
-                                selectedV1 = &v;
+                        for (Vertex* v : vertices) {
+                            if (inside(v->pos, vec2(e.mouseButton.x, e.mouseButton.y), 20)) {
+                                selectedV1 = v;
                                 selectedVCol = find(colors.begin(), colors.end(), selectedV1->color) - colors.begin();
                                 break;
                             }
@@ -386,12 +389,12 @@ int main() {
         }
         if (ImGui::Button("Repaint all vertices")) {
             for (auto& v : vertices) {
-                v.color = colors[vCol];
+                v->color = colors[vCol];
             }
         }
         if (ImGui::Button("Repaint all edges")) {
             for (auto& e : edges) {
-                e.color = colors[eCol];
+                e->color = colors[eCol];
             }
         }
 
@@ -445,30 +448,30 @@ int main() {
             window.draw(rect);
         }
         // Draw edges
-        for (auto& e : edges) {
-            e.updatePoints();
-            window.draw(e.points);
+        for (Edge* e : edges) {
+            e->updatePoints();
+            window.draw(e->points);
             // Draw edge marks and anchors if necessary
             if (mode == ModEdges || mode == DeleteEdges) {
-                window.draw(e.anchors);
-                e.p3->mark.setPosition(e.p3->pos);
-                window.draw(e.p3->mark);
+                window.draw(e->anchors);
+                e->p3->mark.setPosition(e->p3->pos);
+                window.draw(e->p3->mark);
             }
-            if (e.oriented) {
+            if (e->oriented) {
                 // Draw arrows if an edge is oriented
-                window.draw(e.arrow);
+                window.draw(e->arrow);
             }
         }
-        for (auto& v : vertices) {
-            v.shape.setFillColor(v.color);
-            v.shape.setOutlineColor(v.color);
-            if (&v == selectedV1) {
-                v.shape.setOutlineColor(col::Cyan);
-            } else if (&v == selectedV2) {
-                v.shape.setOutlineColor(col::Cyan);
+        for (Vertex* v : vertices) {
+            v->shape.setFillColor(v->color);
+            v->shape.setOutlineColor(v->color);
+            if (v == selectedV1) {
+                v->shape.setOutlineColor(col::Cyan);
+            } else if (v == selectedV2) {
+                v->shape.setOutlineColor(col::Cyan);
             }
-            v.shape.setPosition(v.xy());
-            window.draw(v.shape);
+            v->shape.setPosition(v->xy());
+            window.draw(v->shape);
         }
 
         ImGui::SFML::Render(window);
@@ -504,7 +507,7 @@ void drawGrid(sf::RenderTarget& target) {
     }
 }
 
-void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Vertex>& vertices, vector<Edge>& edges) {
+void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices, vector<Edge*>& edges) {
     string path_cpp(path);
     path_cpp = save_path + path_cpp;
     path_cpp += ".png";
@@ -516,28 +519,28 @@ void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Ver
     toRender.create((bottomright - topleft).x, (bottomright - topleft).y);
     // toSave.create((bottomright - topleft).x, (bottomright - topleft).y);
 
-    for (auto& v : vertices) {
-        v.shape.move(-topleft);
+    for (Vertex* v : vertices) {
+        v->pos -= topleft;
     }
-    for (auto& e : edges) {
-        e.updatePoints();
-        toRender.draw(e.points);
+    for (Edge* e : edges) {
+        e->updatePoints();
+        toRender.draw(e->points);
     }
-    for (auto& v : vertices) {
-        v.shape.setFillColor(v.color);
-        v.shape.setOutlineColor(v.color);
-        v.shape.setPosition(v.xy());
-        toRender.draw(v.shape);
+    for (Vertex* v : vertices) {
+        v->shape.setFillColor(v->color);
+        v->shape.setOutlineColor(v->color);
+        v->shape.setPosition(v->xy());
+        toRender.draw(v->shape);
     }
     toSave = toRender.getTexture().copyToImage();
     toSave.flipVertically();
     // toRender.getTexture().copyToImage().saveToFile(path_cpp);
     toSave.saveToFile(path_cpp);
-    for (auto& v : vertices) {
-        v.shape.move(topleft);
+    for (Vertex* v : vertices) {
+        v->pos += topleft;
     }
 }
-void saveGraphAsFile(char path[128], vector<Vertex>& vertices, vector<Edge>& edges, const vector<col>& colors) {
+void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, const vector<col>& colors) {
     string path_cpp(path);
     path_cpp = save_path + path_cpp;
     path_cpp += ".txt";
@@ -554,23 +557,23 @@ void saveGraphAsFile(char path[128], vector<Vertex>& vertices, vector<Edge>& edg
     // Save vertices
     // V pos.X pos.Y col
     for (int i = 0; i < vertices.size(); i++) {
-        outputFile << "V " << i << " " << vertices[i].pos.x << " " << vertices[i].pos.y << " "
-                   << find(colors.begin(), colors.end(), vertices[i].color) - colors.begin() << endl;
-        pointers.emplace_back(&vertices[i]);
+        outputFile << "V " << i << " " << vertices[i]->pos.x << " " << vertices[i]->pos.y << " "
+                   << find(colors.begin(), colors.end(), vertices[i]->color) - colors.begin() << endl;
+        pointers.emplace_back(vertices[i]);
     }
     // Save edges
     // E v1i v2i mark.pos.x mark.pos.y col or
     for (int i = 0; i < edges.size(); i++) {
-        outputFile << "E " << find(pointers.begin(), pointers.end(), edges[i].v1) - pointers.begin() << " "
-                   << find(pointers.begin(), pointers.end(), edges[i].v2) - pointers.begin() << " "
-                   << (int)edges[i].p3->pos.x << " " << (int)edges[i].p3->pos.y << " "
-                   << find(colors.begin(), colors.end(), edges[i].color) - colors.begin() << " " << edges[i].oriented
+        outputFile << "E " << find(pointers.begin(), pointers.end(), edges[i]->v1) - pointers.begin() << " "
+                   << find(pointers.begin(), pointers.end(), edges[i]->v2) - pointers.begin() << " "
+                   << (int)edges[i]->p3->pos.x << " " << (int)edges[i]->p3->pos.y << " "
+                   << find(colors.begin(), colors.end(), edges[i]->color) - colors.begin() << " " << edges[i]->oriented
                    << endl;
     }
 
     outputFile.close();
 }
-void loadGraphFromFile(char path[128], vector<Vertex>& vertices, vector<Edge>& edges, const vector<col>& colors) {
+void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, const vector<col>& colors) {
     string path_cpp(path);
     path_cpp = save_path + path_cpp;
     path_cpp += ".txt";
@@ -596,7 +599,7 @@ void loadGraphFromFile(char path[128], vector<Vertex>& vertices, vector<Edge>& e
             cout << "Add vertex" << endl;
             int i, x, y, c;
             input >> i >> x >> y >> c;
-            vertices.emplace_back(Vertex{vec2(x, y), colors[c]});
+            vertices.emplace_back(new Vertex{vec2(x, y), colors[c]});
         } else if (type == 'E') {
             cout << "Add edge" << endl;
             int v1i, v2i, mx, my, c;
@@ -606,7 +609,7 @@ void loadGraphFromFile(char path[128], vector<Vertex>& vertices, vector<Edge>& e
             v2i += initial_size;
             cout << v1i << " " << v2i << " " << mx << " " << my << " " << c << " " << oriented << endl;
             Mark* m = new Mark(mx, my);
-            edges.emplace_back(Edge{&vertices[v1i], &vertices[v2i], m, colors[c], oriented});
+            edges.emplace_back(new Edge{vertices[v1i], vertices[v2i], m, colors[c], oriented});
         } else {
             cout << "ERROR: Invalid file format" << endl;
         }
@@ -614,13 +617,13 @@ void loadGraphFromFile(char path[128], vector<Vertex>& vertices, vector<Edge>& e
     }
 }
 
-void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex>& vertices) {
+void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices) {
     float radius = min(bottomright.x - topleft.x, bottomright.y - topleft.y) / 2 - 50;
     vec2 center = (topleft + bottomright) / 2.f;
     float dphi = 2 * PI / vertices.size();
     for (int i = 0; i < vertices.size(); i++) {
-        vertices[i].pos = center + radius * vec2(sin(dphi * i), cos(dphi * i));
+        vertices[i]->pos = center + radius * vec2(sin(dphi * i), cos(dphi * i));
     }
 }
-void oppositeEdges(vector<Vertex>& vertices, vector<Edge>& edges) {
+void oppositeEdges(vector<Vertex*>& vertices, vector<Edge*>& edges) {
 }
