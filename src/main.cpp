@@ -14,6 +14,7 @@
 
 #define PI 3.1415926
 #define save_path "C:/graphs/"
+#define FONT_PATH "C:/Windows/Fonts/arial.ttf"
 
 using std::cout, std::cin, std::endl, std::min;
 using std::fstream, std::stringstream;
@@ -36,10 +37,13 @@ void drawGrid(sf::RenderTarget& target);
 enum Mode {
     CreateVertices,
     CreateEdges,
+    CreateText,
     DeleteVertices,
     DeleteEdges,
+    DeleteText,
     ModVertices,
     ModEdges,
+    ModText,
 };
 
 struct Mark {
@@ -70,6 +74,7 @@ struct Vertex {
         shape.setRadius(20);
         shape.setOrigin(20, 20);
         shape.setPointCount(20);
+        shape.setPosition(pos);
         shape.setOutlineThickness(3.f);
     }
 
@@ -143,9 +148,29 @@ struct Edge {
     }
 };
 
-void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices, vector<Edge*>& edges);
-void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, const vector<col>& colors);
-void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, const vector<col>& colors);
+struct Text {
+    vec2 pos;
+    sf::Text text;
+
+    Text(string textString, sf::Font& font, vec2 pos) : pos(pos) {
+        cout << "Created text " << textString << endl;
+        text.setFont(font);
+        text.setFillColor(col::Black);
+        text.setOutlineColor(col::Black);
+        text.setString(textString);
+        text.setCharacterSize(30);
+        text.setStyle(sf::Text::Regular);
+        text.setOrigin(text.getLocalBounds().getSize() / 2.f);
+        text.setPosition(pos);
+    }
+};
+
+void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices, vector<Edge*>& edges,
+                      vector<Text*>& textObjs);
+void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, vector<Text*>& textObjs,
+                     const vector<col>& colors);
+void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, vector<Text*>& textObjs,
+                       const vector<col>& colors, sf::Font& font);
 
 void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices);
 void oppositeEdges(vector<Vertex*>& vertices, vector<Edge*>& edges);
@@ -179,6 +204,14 @@ int main() {
     bool orientEdges = false;
     // Selected Mark
     bool showMarks = false;
+    // Selected Text
+    static sf::Font font;
+    if (!font.loadFromFile(FONT_PATH)) {
+        cout << "ERROR: Failed to load font " << FONT_PATH << endl;
+    }
+    static char text_string[128] = "";
+    static char text_string_2[128] = "";
+    Text* selectedText = nullptr;
     // Mode
     int mode = Mode::CreateVertices;
     // Grid for snapping
@@ -194,6 +227,7 @@ int main() {
     // vector<Mark> marks{};
     vector<Vertex*> vertices{};
     vector<Edge*> edges{};
+    vector<Text*> textObjs{};
 
     // ImGui
     sf::Clock clock;
@@ -214,7 +248,7 @@ int main() {
                         window.close();
                         break;
                     case scan::Space:
-                        saveGraphAsImage(filename, topleft, bottomRight, vertices, edges);
+                        saveGraphAsImage(filename, topleft, bottomRight, vertices, edges, textObjs);
                         break;
                     default:
                         break;
@@ -251,9 +285,16 @@ int main() {
                         Mark* to_add = new Mark(selectedV1 == selectedV2 ? (selectedV1->pos + vec2(50, 50))
                                                                          : (selectedV1->pos + selectedV2->pos) / 2.f);
                         edges.emplace_back(new Edge{selectedV1, selectedV2, to_add, colors[eCol],
-                                                (selectedV1 == selectedV2 ? false : orientEdges)});
+                                                    (selectedV1 == selectedV2 ? false : orientEdges)});
                         selectedV1 = nullptr;
                         selectedV2 = nullptr;
+                    } else if (mode == CreateText) {
+                        int x = e.mouseButton.x, y = e.mouseButton.y;
+                        if (showGrid) {
+                            x -= x % 50;
+                            y -= y % 50;
+                        }
+                        textObjs.emplace_back(new Text{string(text_string), font, vec2(x, y)});
                     } else if (mode == DeleteEdges) {
                         int to_delete = -1;
                         for (int i = 0; i < edges.size(); i++) {
@@ -291,6 +332,20 @@ int main() {
                         }
                         delete vertices[to_delete];
                         vertices.erase(vertices.begin() + to_delete);
+                    } else if (mode == DeleteText) {
+                        int to_delete = -1;
+                        for (int i = 0; i < textObjs.size(); i++) {
+                            if (textObjs[i]->text.getGlobalBounds().intersects(
+                                    sf::FloatRect{(float)e.mouseButton.x - 2, (float)e.mouseButton.y - 2, 4, 4})) {
+                                to_delete = i;
+                                break;
+                            }
+                        }
+                        if (to_delete == -1) {
+                            break;
+                        }
+                        delete textObjs[to_delete];
+                        textObjs.erase(textObjs.begin() + to_delete);
                     } else if (mode == ModEdges) {
                         if (selectedE) {
                             int x = e.mouseButton.x, y = e.mouseButton.y;
@@ -308,7 +363,7 @@ int main() {
                                 break;
                             }
                         }
-                    } else {
+                    } else if (mode == ModVertices) {
                         if (selectedV1) {
                             int x = e.mouseButton.x, y = e.mouseButton.y;
                             if (showGrid) {
@@ -316,12 +371,32 @@ int main() {
                                 y -= y % 50;
                             }
                             selectedV1->pos = vec2(x, y);
+                            selectedV1->shape.setPosition(vec2(x, y));
                             continue;
                         }
                         for (Vertex* v : vertices) {
                             if (inside(v->pos, vec2(e.mouseButton.x, e.mouseButton.y), 20)) {
                                 selectedV1 = v;
                                 selectedVCol = find(colors.begin(), colors.end(), selectedV1->color) - colors.begin();
+                                break;
+                            }
+                        }
+                    } else {
+                        if (selectedText) {
+                            int x = e.mouseButton.x, y = e.mouseButton.y;
+                            if (showGrid) {
+                                x -= x % 50;
+                                y -= y % 50;
+                            }
+                            selectedText->pos = vec2(x, y);
+                            selectedText->text.setPosition(vec2(x, y));
+                            continue;
+                        }
+                        for (Text* t : textObjs) {
+                            if (t->text.getGlobalBounds().intersects(
+                                    sf::FloatRect{(float)e.mouseButton.x - 2, (float)e.mouseButton.y - 2, 4, 4})) {
+                                selectedText = t;
+                                strcpy(text_string_2, t->text.getString().toAnsiString().c_str());
                                 break;
                             }
                         }
@@ -332,6 +407,8 @@ int main() {
                         selectedV2 = nullptr;
                     } else if (mode == Mode::ModEdges) {
                         selectedE = nullptr;
+                    } else if (mode == Mode::ModText) {
+                        selectedText = nullptr;
                     }
                 }
             }
@@ -349,10 +426,13 @@ int main() {
         ImGui::Text("Mode");
         ImGui::RadioButton("Create edges", &mode, Mode::CreateEdges);
         ImGui::RadioButton("Create vertices", &mode, Mode::CreateVertices);
+        ImGui::RadioButton("Create text", &mode, Mode::CreateText);
         ImGui::RadioButton("Delete Vertices", &mode, Mode::DeleteVertices);
         ImGui::RadioButton("Delete Edges", &mode, Mode::DeleteEdges);
+        ImGui::RadioButton("Delete Text", &mode, Mode::DeleteText);
         ImGui::RadioButton("Modify Vertices", &mode, Mode::ModVertices);
         ImGui::RadioButton("Modify Edges", &mode, Mode::ModEdges);
+        ImGui::RadioButton("Modify Text", &mode, Mode::ModText);
 
         if (ImGui::TreeNode("Vertex color")) {
             for (int i = 0; i < names.size(); i++) {
@@ -368,16 +448,18 @@ int main() {
             ImGui::TreePop();
         }
 
+        ImGui::InputTextWithHint("Text to add", "Input text to add as object", text_string, 128);
+
         ImGui::InputTextWithHint("File name", "Input filename without the extension", filename, 128);
 
         if (ImGui::Button("Save graph as image")) {
-            saveGraphAsImage(filename, topleft, bottomRight, vertices, edges);
+            saveGraphAsImage(filename, topleft, bottomRight, vertices, edges, textObjs);
         }
         if (ImGui::Button("Save graph as file")) {
-            saveGraphAsFile(filename, vertices, edges, colors);
+            saveGraphAsFile(filename, vertices, edges, textObjs, colors);
         }
         if (ImGui::Button("Load graph from file")) {
-            loadGraphFromFile(filename, vertices, edges, colors);
+            loadGraphFromFile(filename, vertices, edges, textObjs, colors, font);
         }
         // Place vertices in a circle
         if (ImGui::Button("Place in a circle")) {
@@ -421,18 +503,27 @@ int main() {
                 selectedE->color = colors[selectedECol];
             }
             ImGui::End();
+        } else if (mode == ModText && selectedText) {
+            ImGui::Begin("Modify text");
+            ImGui::InputText("Modify string", text_string_2, 128);
+            if (ImGui::Button("Change text")) {
+                if (text_string_2 != "") {
+                    selectedText->text.setString(string(text_string_2));
+                }
+            }
+            ImGui::End();
         }
 
         // Reset selected objects
-        if (mode == CreateVertices || mode == DeleteEdges || mode == DeleteVertices) {
+        if (mode != ModVertices && mode != CreateEdges) {
             selectedV1 = nullptr;
             selectedV2 = nullptr;
+        }
+        if (mode != ModText) {
+            selectedText = nullptr;
+        }
+        if (mode != ModEdges) {
             selectedE = nullptr;
-        } else if (mode == CreateEdges || mode == ModVertices) {
-            selectedE = nullptr;
-        } else if (mode == ModEdges) {
-            selectedV1 = nullptr;
-            selectedV2 = nullptr;
         }
         topleft = vec2(tl[0], tl[1]);
         bottomRight = vec2(br[0], br[1]);
@@ -470,8 +561,17 @@ int main() {
             } else if (v == selectedV2) {
                 v->shape.setOutlineColor(col::Cyan);
             }
-            v->shape.setPosition(v->xy());
             window.draw(v->shape);
+        }
+        for (Text* t : textObjs) {
+            t->text.setOutlineColor(col::Black);
+            if (mode == ModText) {
+                t->text.setOutlineColor(col::Cyan);
+            }
+            if (t == selectedText) {
+                t->text.setOutlineColor(col::Red);
+            }
+            window.draw(t->text);
         }
 
         ImGui::SFML::Render(window);
@@ -507,7 +607,8 @@ void drawGrid(sf::RenderTarget& target) {
     }
 }
 
-void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices, vector<Edge*>& edges) {
+void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices, vector<Edge*>& edges,
+                      vector<Text*>& textObjs) {
     string path_cpp(path);
     path_cpp = save_path + path_cpp;
     path_cpp += ".png";
@@ -523,24 +624,30 @@ void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Ver
         v->pos -= topleft;
     }
     for (Edge* e : edges) {
+        e->p3->pos -= topleft;
         e->updatePoints();
         toRender.draw(e->points);
+        e->p3->pos += topleft;
     }
     for (Vertex* v : vertices) {
         v->shape.setFillColor(v->color);
         v->shape.setOutlineColor(v->color);
         v->shape.setPosition(v->xy());
         toRender.draw(v->shape);
+        v->pos += topleft;
+        v->shape.setPosition(v->xy());
+    }
+    for (Text* t : textObjs) {
+        t->text.move(-topleft);
+        toRender.draw(t->text);
+        t->text.move(topleft);
     }
     toSave = toRender.getTexture().copyToImage();
     toSave.flipVertically();
-    // toRender.getTexture().copyToImage().saveToFile(path_cpp);
     toSave.saveToFile(path_cpp);
-    for (Vertex* v : vertices) {
-        v->pos += topleft;
-    }
 }
-void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, const vector<col>& colors) {
+void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, vector<Text*>& textObjs,
+                     const vector<col>& colors) {
     string path_cpp(path);
     path_cpp = save_path + path_cpp;
     path_cpp += ".txt";
@@ -570,10 +677,16 @@ void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& e
                    << find(colors.begin(), colors.end(), edges[i]->color) - colors.begin() << " " << edges[i]->oriented
                    << endl;
     }
-
+    // Save textObjs
+    // T string x y
+    for (int i = 0; i < textObjs.size(); i++) {
+        outputFile << "T " << textObjs[i]->text.getString().toAnsiString() << " " << textObjs[i]->pos.x << " "
+                   << textObjs[i]->pos.y << endl;
+    }
     outputFile.close();
 }
-void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, const vector<col>& colors) {
+void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, vector<Text*>& textObjs,
+                       const vector<col>& colors, sf::Font& font) {
     string path_cpp(path);
     path_cpp = save_path + path_cpp;
     path_cpp += ".txt";
@@ -610,6 +723,12 @@ void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>&
             cout << v1i << " " << v2i << " " << mx << " " << my << " " << c << " " << oriented << endl;
             Mark* m = new Mark(mx, my);
             edges.emplace_back(new Edge{vertices[v1i], vertices[v2i], m, colors[c], oriented});
+        } else if (type == 'T') {
+            cout << "Add text" << endl;
+            string t;
+            int x, y;
+            input >> t >> x >> y;
+            textObjs.emplace_back(new Text{t, font, vec2(x, y)});
         } else {
             cout << "ERROR: Invalid file format" << endl;
         }
