@@ -13,8 +13,11 @@ FetchContent_Declare(SFML
     SYSTEM)
 FetchContent_MakeAvailable(SFML)
 
+if (WIN32)
 include_directories(./include/imgui-1.91.1 ./include/imgui-sfml-2.6.1)
-
+else()
+include_directories(${CMAKE_SOURCE_DIR}/include/imgui-1.91.1 ${CMAKE_SOURCE_DIR}/include/imgui-sfml-2.6.1)
+endif()
 add_executable(main src/main.cpp src/imgui_draw.cpp src/imgui_tables.cpp src/imgui_widgets.cpp src/imgui-SFML.cpp src/imgui.cpp)
 target_link_libraries(main PRIVATE sfml-graphics)
 

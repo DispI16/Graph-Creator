@@ -1,11 +1,9 @@
 #include <imgui-SFML.h>
 #include <imgui.h>
-#include <windows.h>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
 #include <cmath>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -19,7 +17,6 @@
 using std::cout, std::cin, std::endl, std::min;
 using std::fstream, std::stringstream;
 using std::vector, std::string, std::map;
-using std::filesystem::directory_iterator;
 using vec2 = sf::Vector2f;
 using scan = sf::Keyboard::Scancode;
 using col = sf::Color;
@@ -176,8 +173,8 @@ void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices);
 void oppositeEdges(vector<Vertex*>& vertices, vector<Edge*>& edges);
 
 int main() {
-    const vector<string> names = {"Black", "Blue", "Yellow", "Red", "Green"};
-    const vector<col> colors = {col::Black, col::Blue, col::Yellow, col::Red, col::Green};
+    const vector<string> names = {"Black", "Blue", "Yellow", "Red", "Green", "White"};
+    const vector<col> colors = {col::Black, col::Blue, col::Yellow, col::Red, col::Green, col::White};
     // Global Mode
     // Edge and Vertex Colors
     int vCol = 0;
@@ -219,7 +216,8 @@ int main() {
     static char filename[128] = "";
     // Graphics
     // Window
-    auto window = sf::RenderWindow(sf::VideoMode({0, 0}), "Graph Builder", sf::Style::Fullscreen);
+    // auto window = sf::RenderWindow(sf::VideoMode({0, 0}), "Graph Builder", sf::Style::Fullscreen);
+    sf::RenderWindow window(sf::VideoMode({0, 0}), "Graph Builder", sf::Style::Fullscreen);
     window.setFramerateLimit(60);
     window.setVerticalSyncEnabled(true);
 
@@ -442,7 +440,7 @@ int main() {
         }
 
         if (ImGui::TreeNode("Edge color")) {
-            for (int i = 0; i < names.size(); i++) {
+            for (int i = 0; i < names.size() - 1; i++) {
                 ImGui::RadioButton(names[i].c_str(), &eCol, i);
             }
             ImGui::TreePop();
@@ -555,10 +553,12 @@ int main() {
         }
         for (Vertex* v : vertices) {
             v->shape.setFillColor(v->color);
-            v->shape.setOutlineColor(v->color);
-            if (v == selectedV1) {
-                v->shape.setOutlineColor(col::Cyan);
-            } else if (v == selectedV2) {
+            if (v->color != col::White) {
+                v->shape.setOutlineColor(v->color);
+            } else {
+                v->shape.setOutlineColor(col::Black);
+            }
+            if (v == selectedV1 || v == selectedV2) {
                 v->shape.setOutlineColor(col::Cyan);
             }
             window.draw(v->shape);
@@ -631,7 +631,11 @@ void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Ver
     }
     for (Vertex* v : vertices) {
         v->shape.setFillColor(v->color);
-        v->shape.setOutlineColor(v->color);
+        if (v->color == col::White) {
+            v->shape.setOutlineColor(col::Black);
+        } else {
+            v->shape.setOutlineColor(v->color);
+        }
         v->shape.setPosition(v->xy());
         toRender.draw(v->shape);
         v->pos += topleft;
