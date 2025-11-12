@@ -11,7 +11,7 @@
 #include <vector>
 
 #define PI 3.1415926
-#define save_path "C:/graphs/"
+#define SAVE_PATH "C:/graphs/"
 #define FONT_PATH "C:/Windows/Fonts/arial.ttf"
 
 using std::cout, std::cin, std::endl, std::min;
@@ -217,7 +217,7 @@ int main() {
     // Graphics
     // Window
     // auto window = sf::RenderWindow(sf::VideoMode({0, 0}), "Graph Builder", sf::Style::Fullscreen);
-    sf::RenderWindow window(sf::VideoMode({0, 0}), "Graph Builder", sf::Style::Fullscreen);
+    sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "Graph Builder");
     window.setFramerateLimit(60);
     window.setVerticalSyncEnabled(true);
 
@@ -242,9 +242,6 @@ int main() {
                 window.close();
             } else if (e.type == sf::Event::KeyPressed) {
                 switch (e.key.scancode) {
-                    case scan::Escape:
-                        window.close();
-                        break;
                     case scan::Space:
                         saveGraphAsImage(filename, topleft, bottomRight, vertices, edges, textObjs);
                         break;
@@ -460,13 +457,13 @@ int main() {
             loadGraphFromFile(filename, vertices, edges, textObjs, colors, font);
         }
         // Place vertices in a circle
-        if (ImGui::Button("Place in a circle")) {
-            placeInCircle(topleft, bottomRight, vertices);
-        }
+        // if (ImGui::Button("Place in a circle")) {
+        //     placeInCircle(topleft, bottomRight, vertices);
+        // }
         // Create opposite edges
-        if (ImGui::Button("Opposite edges")) {
-            oppositeEdges(vertices, edges);
-        }
+        // if (ImGui::Button("Opposite edges")) {
+        //     oppositeEdges(vertices, edges);
+        // }
         if (ImGui::Button("Repaint all vertices")) {
             for (auto& v : vertices) {
                 v->color = colors[vCol];
@@ -610,7 +607,7 @@ void drawGrid(sf::RenderTarget& target) {
 void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices, vector<Edge*>& edges,
                       vector<Text*>& textObjs) {
     string path_cpp(path);
-    path_cpp = save_path + path_cpp;
+    path_cpp = SAVE_PATH + path_cpp;
     path_cpp += ".png";
 
     cout << "Saving to " << path_cpp << endl;
@@ -653,7 +650,7 @@ void saveGraphAsImage(char path[128], vec2 topleft, vec2 bottomright, vector<Ver
 void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, vector<Text*>& textObjs,
                      const vector<col>& colors) {
     string path_cpp(path);
-    path_cpp = save_path + path_cpp;
+    path_cpp = SAVE_PATH + path_cpp;
     path_cpp += ".txt";
 
     cout << "Saving to " << path_cpp << endl;
@@ -692,7 +689,7 @@ void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& e
 void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, vector<Text*>& textObjs,
                        const vector<col>& colors, sf::Font& font) {
     string path_cpp(path);
-    path_cpp = save_path + path_cpp;
+    path_cpp = SAVE_PATH + path_cpp;
     path_cpp += ".txt";
 
     cout << "Opening graph from " << path_cpp << endl;
