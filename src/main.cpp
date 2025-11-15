@@ -28,6 +28,12 @@ vec2 perp(vec2 input);
 bool inside(vec2 input, vec2 center, float l) {
     return pow(input.x - center.x, 2) + pow(input.y - center.y, 2) < l * l;
 }
+vec2 div(vec2 a, vec2 b) {
+    return vec2(a.x * b.x + a.y * b.y, a.y * b.x - a.x * b.y) / (b.x * b.x + b.y * b.y);
+}
+vec2 mul(vec2 a, vec2 b) {
+    return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
 
 void drawGrid(sf::RenderTarget& target);
 
@@ -171,6 +177,7 @@ void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>&
 
 void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices);
 void oppositeEdges(vector<Vertex*>& vertices, vector<Edge*>& edges);
+void updateEdgesWithVertex(vector<Edge*>& edges, Vertex* selectedVertex, vec2 new_pos);
 
 int main() {
     const vector<string> names = {"Black", "Blue", "Yellow", "Red", "Green", "White"};
@@ -211,6 +218,7 @@ int main() {
     Text* selectedText = nullptr;
     // Mode
     int mode = Mode::CreateVertices;
+    bool lockEdges = true;
     // Grid for snapping
     bool showGrid = false;
     static char filename[128] = "";
@@ -365,6 +373,9 @@ int main() {
                                 x -= x % 50;
                                 y -= y % 50;
                             }
+                            if (lockEdges) {
+                                updateEdgesWithVertex(edges, selectedV1, vec2(x, y));
+                            }
                             selectedV1->pos = vec2(x, y);
                             selectedV1->shape.setPosition(vec2(x, y));
                             continue;
@@ -415,6 +426,7 @@ int main() {
 
         ImGui::Checkbox("Show grid", &showGrid);
         ImGui::Checkbox("Show rect", &showRect);
+        ImGui::Checkbox("Lock edges to vertices", &lockEdges);
         ImGui::InputInt2("Rect Top Left", tl);
         ImGui::InputInt2("Rect Bottom Right", br);
         ImGui::Checkbox("Create oriented edges", &orientEdges);
@@ -746,4 +758,14 @@ void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices) {
     }
 }
 void oppositeEdges(vector<Vertex*>& vertices, vector<Edge*>& edges) {
+}
+
+void updateEdgesWithVertex(vector<Edge*>& edges, Vertex* selectedVertex, vec2 new_pos) {
+    for (Edge* e : edges) {
+        if (e->v1 != selectedVertex && e->v2 != selectedVertex)
+            continue;
+        Vertex* other = e->v1 == selectedVertex ? e->v2 : e->v1;
+        vec2 z_prime = div(new_pos - other->pos, selectedVertex->pos - other->pos);
+        e->p3->pos = other->pos + mul(e->p3->pos - other->pos, z_prime);
+    }
 }
