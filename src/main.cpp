@@ -175,7 +175,7 @@ void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& e
 void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& edges, vector<Text*>& textObjs,
                        const vector<col>& colors, sf::Font& font);
 
-void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices);
+void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices, vector<Edge*>& edges);
 void oppositeEdges(vector<Vertex*>& vertices, vector<Edge*>& edges);
 void updateEdgesWithVertex(vector<Edge*>& edges, Vertex* selectedVertex, vec2 new_pos);
 
@@ -224,8 +224,7 @@ int main() {
     static char filename[128] = "";
     // Graphics
     // Window
-    // auto window = sf::RenderWindow(sf::VideoMode({0, 0}), "Graph Builder", sf::Style::Fullscreen);
-    sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "Graph Builder");
+    sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "Graph Builder", sf::Style::Titlebar | sf::Style::Close);
     window.setFramerateLimit(60);
     window.setVerticalSyncEnabled(true);
 
@@ -253,9 +252,38 @@ int main() {
                     case scan::Space:
                         saveGraphAsImage(filename, topleft, bottomRight, vertices, edges, textObjs);
                         break;
+                    case scan::T:
+                        if (mode == CreateText) {
+                            mode = ModText;
+                        } else if (mode == ModText) {
+                            mode = DeleteText;
+                        } else {
+                            mode = CreateText;
+                        }
+                        break;
+                    case scan::E:
+                        if (mode == CreateEdges) {
+                            mode = ModEdges;
+                        } else if (mode == ModEdges) {
+                            mode = DeleteEdges;
+                        } else {
+                            mode = CreateEdges;
+                        }
+                        break;
+                    case scan::V:
+                        if (mode == CreateVertices) {
+                            mode = ModVertices;
+                        } else if (mode == ModVertices) {
+                            mode = DeleteVertices;
+                        } else {
+                            mode = CreateVertices;
+                        }
+                        break;
                     default:
                         break;
                 }
+            } else if (e.type == sf::Event::Resized) {
+                window.setSize({e.size.width, e.size.height});
             } else if (e.type == sf::Event::MouseButtonPressed) {
                 if (ImGui::GetIO().WantCaptureMouse)
                     continue;
@@ -469,9 +497,9 @@ int main() {
             loadGraphFromFile(filename, vertices, edges, textObjs, colors, font);
         }
         // Place vertices in a circle
-        // if (ImGui::Button("Place in a circle")) {
-        //     placeInCircle(topleft, bottomRight, vertices);
-        // }
+        if (ImGui::Button("Place in a circle")) {
+            placeInCircle(topleft, bottomRight, vertices, edges);
+        }
         // Create opposite edges
         // if (ImGui::Button("Opposite edges")) {
         //     oppositeEdges(vertices, edges);
@@ -749,12 +777,14 @@ void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>&
     }
 }
 
-void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices) {
-    float radius = min(bottomright.x - topleft.x, bottomright.y - topleft.y) / 2 - 50;
+void placeInCircle(vec2 topleft, vec2 bottomright, vector<Vertex*>& vertices, vector<Edge*>& edges) {
+    float radius = min(bottomright.x - topleft.x, bottomright.y - topleft.y) / 2 - 60;
     vec2 center = (topleft + bottomright) / 2.f;
     float dphi = 2 * PI / vertices.size();
     for (int i = 0; i < vertices.size(); i++) {
+        updateEdgesWithVertex(edges, vertices[i], center + radius * vec2(sin(dphi * i), cos(dphi * i)));
         vertices[i]->pos = center + radius * vec2(sin(dphi * i), cos(dphi * i));
+        vertices[i]->shape.setPosition(vertices[i]->pos);
     }
 }
 void oppositeEdges(vector<Vertex*>& vertices, vector<Edge*>& edges) {
