@@ -705,7 +705,7 @@ void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& e
     // Save vertices
     // V pos.X pos.Y col
     for (int i = 0; i < vertices.size(); i++) {
-        outputFile << "V " << i << " " << vertices[i]->pos.x << " " << vertices[i]->pos.y << " "
+        outputFile << "V " << i << " " << (int)vertices[i]->pos.x << " " << (int)vertices[i]->pos.y << " "
                    << find(colors.begin(), colors.end(), vertices[i]->color) - colors.begin() << endl;
         pointers.emplace_back(vertices[i]);
     }
@@ -721,8 +721,8 @@ void saveGraphAsFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>& e
     // Save textObjs
     // T string x y
     for (int i = 0; i < textObjs.size(); i++) {
-        outputFile << "T " << textObjs[i]->text.getString().toAnsiString() << " " << textObjs[i]->pos.x << " "
-                   << textObjs[i]->pos.y << endl;
+        outputFile << "T " << textObjs[i]->text.getString().toAnsiString() << " " << (int)textObjs[i]->pos.x << " "
+                   << (int)textObjs[i]->pos.y << endl;
     }
     outputFile.close();
 }
