@@ -156,7 +156,6 @@ struct Text {
     sf::Text text;
 
     Text(string textString, sf::Font& font, vec2 pos) : pos(pos) {
-        cout << "Created text " << textString << endl;
         text.setFont(font);
         text.setFillColor(col::Black);
         text.setOutlineColor(col::Black);
@@ -514,7 +513,21 @@ int main() {
                 e->color = colors[eCol];
             }
         }
-
+        if (ImGui::Button("Erase the graph")) {
+            for (Vertex* v : vertices) {
+                delete v;
+            }
+            vertices.clear();
+            for (Edge* e : edges) {
+                delete e->p3;
+                delete e;
+            }
+            edges.clear();
+            for (Text* t : textObjs) {
+                delete t;
+            }
+            textObjs.clear();
+        }
         ImGui::End();
 
         if (mode == ModVertices && selectedV1) {
@@ -746,26 +759,21 @@ void loadGraphFromFile(char path[128], vector<Vertex*>& vertices, vector<Edge*>&
     stringstream input;
     while (getline(inputFile, line)) {
         input << line;
-        cout << line << endl;
         char type;
         input >> type;
         if (type == 'V') {
-            cout << "Add vertex" << endl;
             int i, x, y, c;
             input >> i >> x >> y >> c;
             vertices.emplace_back(new Vertex{vec2(x, y), colors[c]});
         } else if (type == 'E') {
-            cout << "Add edge" << endl;
             int v1i, v2i, mx, my, c;
             bool oriented;
             input >> v1i >> v2i >> mx >> my >> c >> oriented;
             v1i += initial_size;
             v2i += initial_size;
-            cout << v1i << " " << v2i << " " << mx << " " << my << " " << c << " " << oriented << endl;
             Mark* m = new Mark(mx, my);
             edges.emplace_back(new Edge{vertices[v1i], vertices[v2i], m, colors[c], oriented});
         } else if (type == 'T') {
-            cout << "Add text" << endl;
             string t;
             int x, y;
             input >> t >> x >> y;
